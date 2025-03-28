@@ -991,6 +991,8 @@ Claims.post("/delete-claim", async (req, res): Promise<any> => {
       if (fs.existsSync(claimDir)) {
         await fs.rm(claimDir, { recursive: true });
       }
+      await saveUserLogs(_prisma, req, claimId, "delete", "Claim");
+
     });
 
     res.send({
@@ -1185,6 +1187,8 @@ Claims.post(
             });
           }
         }
+
+        await saveUserLogs(__prisma, req, claimId, "save", "Claim");
       });
 
       res.send({
@@ -1408,6 +1412,8 @@ Claims.post(
             });
           }
         }
+
+        await saveUserLogs(_prisma, req, claimId, "update", "Claim");
       });
 
       res.send({
