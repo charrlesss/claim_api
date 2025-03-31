@@ -530,7 +530,6 @@ Report.post("/report/approved-settled-excel", async (req, res) => {
 // Ongoing
 Report.post("/report/ongoing-pdf", async (req, res) => {
   try {
-  
     const qry = reportQry({
       select: `
         c.Name,
@@ -825,7 +824,6 @@ Report.post("/report/ongoing-pdf", async (req, res) => {
 });
 Report.post("/report/ongoing-excel", async (req, res) => {
   try {
- 
     const qry = reportQry({
       select: `
         c.Name,
@@ -969,7 +967,6 @@ Report.post("/report/ongoing-excel", async (req, res) => {
 // Denied
 Report.post("/report/denied-pdf", async (req, res) => {
   try {
-
     const qry = reportQry({
       select: `
         c.Name,
@@ -1050,11 +1047,6 @@ Report.post("/report/denied-pdf", async (req, res) => {
         style: { width: 100, textAlign: "left" },
       },
       {
-        label: "Plate No#",
-        key: "PlateNo",
-        style: { width: 100, textAlign: "left" },
-      },
-      {
         label: "Chassis No#",
         key: "ChassisNo",
         style: { width: 120, textAlign: "left" },
@@ -1080,9 +1072,9 @@ Report.post("/report/denied-pdf", async (req, res) => {
         style: { width: 80, textAlign: "right" },
       },
       {
-        label: "Date Settled",
-        key: "date_approved",
-        style: { width: 80, textAlign: "left" },
+        label: "Name of TPPD",
+        key: "name_ttpd,",
+        style: { width: 250, textAlign: "left" },
       },
       {
         label: "Status of Claim",
@@ -1255,7 +1247,6 @@ Report.post("/report/denied-pdf", async (req, res) => {
 });
 Report.post("/report/denied-excel", async (req, res) => {
   try {
-
     const qry = reportQry({
       select: `
         c.Name,
@@ -1328,7 +1319,7 @@ Report.post("/report/denied-excel", async (req, res) => {
         { key: "date_report", width: 22 },
         { key: "claim_type", width: 22 },
         { key: "amount_claim", width: 22 },
-        { key: "date_approved", width: 22 },
+        { key: "name_ttpd", width: 22 },
         { key: "status", width: 22 },
       ],
       data: data,
@@ -1363,7 +1354,7 @@ Report.post("/report/denied-excel", async (req, res) => {
           "Date of Claim",
           "Type of Claim",
           "Amount of Claim",
-          "Date Settled",
+          "Name of TPPD",
           "Status of Claim",
         ]);
         headerRow.font = { bold: true };
@@ -1400,8 +1391,6 @@ Report.post("/report/denied-excel", async (req, res) => {
 // Cancel
 Report.post("/report/cancel-pdf", async (req, res) => {
   try {
- 
-
     const qry = reportQry({
       select: `
         c.Name,
@@ -1448,7 +1437,7 @@ Report.post("/report/cancel-pdf", async (req, res) => {
        
       `,
     });
- 
+
     const result: any = await prisma.$queryRawUnsafe(qry);
 
     const data = result.map((itm: any) => {
@@ -1477,19 +1466,14 @@ Report.post("/report/cancel-pdf", async (req, res) => {
         style: { width: 100, textAlign: "left" },
       },
       {
-        label: "Engine No#",
-        key: "MotorNo",
-        style: { width: 100, textAlign: "left" },
+        label: "Chassis No#",
+        key: "ChassisNo",
+        style: { width: 120, textAlign: "left" },
       },
       {
         label: "Plate No#",
         key: "PlateNo",
         style: { width: 100, textAlign: "left" },
-      },
-      {
-        label: "Chassis No#",
-        key: "ChassisNo",
-        style: { width: 120, textAlign: "left" },
       },
       {
         label: "Date Received",
@@ -1512,9 +1496,14 @@ Report.post("/report/cancel-pdf", async (req, res) => {
         style: { width: 80, textAlign: "right" },
       },
       {
-        label: "Date Settled",
-        key: "date_approved",
-        style: { width: 80, textAlign: "left" },
+        label: "Amount Approved",
+        key: "amount_approved",
+        style: { width: 80, textAlign: "right" },
+      },
+      {
+        label: "Name of TTPD",
+        key: "name_ttpd",
+        style: { width: 100, textAlign: "left" },
       },
       {
         label: "Status of Claim",
@@ -1687,7 +1676,6 @@ Report.post("/report/cancel-pdf", async (req, res) => {
 });
 Report.post("/report/cancel-excel", async (req, res) => {
   try {
-
     const qry = reportQry({
       select: `
         c.Name,
@@ -1753,14 +1741,14 @@ Report.post("/report/cancel-excel", async (req, res) => {
         { key: "Name", width: 70 },
         { key: "unit_insured", width: 70 },
         { key: "policyNo", width: 25 },
-        { key: "MotorNo", width: 25 },
-        { key: "PlateNo", width: 25 },
         { key: "ChassisNo", width: 30 },
+        { key: "PlateNo", width: 25 },
         { key: "date_received", width: 22 },
         { key: "date_report", width: 22 },
         { key: "claim_type", width: 22 },
         { key: "amount_claim", width: 22 },
-        { key: "date_approved", width: 22 },
+        { key: "amount_approved", width: 22 },
+        { key: "name_ttpd", width: 22 },
         { key: "status", width: 22 },
       ],
       data: data,
@@ -1788,14 +1776,14 @@ Report.post("/report/cancel-excel", async (req, res) => {
           "Name of Client",
           "Unit Insured",
           "Policy No#",
-          "Engine No#",
-          "Plate No#",
           "Chassis No#",
+          "Plate No#",
           "Date Received",
           "Date of Claim",
           "Type of Claim",
           "Amount of Claim",
-          "Date Settled",
+          "Amount Approved",
+          "Name of TPPD",
           "Status of Claim",
         ]);
         headerRow.font = { bold: true };

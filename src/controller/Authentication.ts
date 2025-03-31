@@ -69,10 +69,11 @@ Authentication.post("/refresh-token", async (req, res): Promise<any> => {
       const accessToken = generateAccessToken(getUser.UserId);
       res.cookie("up-at-login", accessToken, { httpOnly: true });
 
-      res.send({ accessToken: accessToken , refreshToken});
+      res.send({ accessToken: accessToken, refreshToken });
     }
   );
 });
+
 
 Authentication.post(
   "/login",

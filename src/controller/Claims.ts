@@ -510,7 +510,9 @@ Claims.post("/search-policy", async (req, res): Promise<any> => {
           FROM
               new_upward_insurance_ucsmi.policy a
           LEFT JOIN new_upward_insurance_ucsmi.entry_client b ON a.IDNo = b.entry_client_id
-          LEFT JOIN new_upward_insurance_ucsmi.vpolicy c ON a.PolicyNo = c.PolicyNo UNION ALL SELECT 
+          LEFT JOIN new_upward_insurance_ucsmi.vpolicy c ON a.PolicyNo = c.PolicyNo 
+          UNION ALL
+           SELECT 
               a.IDNo,
                   a.PolicyType,
                   a.PolicyNo,
@@ -992,7 +994,6 @@ Claims.post("/delete-claim", async (req, res): Promise<any> => {
         await fs.rm(claimDir, { recursive: true });
       }
       await saveUserLogs(_prisma, req, claimId, "delete", "Claim");
-
     });
 
     res.send({
@@ -1034,27 +1035,30 @@ Claims.post(
         : [req.body.metadata];
 
       const filesArray = JSON.parse(req.body.filesArray);
-      const uploadedFiles = reqFile.files as Express.Multer.File[];
+      const uploadedFiles = (reqFile.files as Express.Multer.File[]) || [];
 
       const basicDocuments = JSON.parse(req.body.basicDocuments);
-      const uploadedBasicFiles = reqFile.basic as Express.Multer.File[];
+      const uploadedBasicFiles = (reqFile.basic as Express.Multer.File[]) || [];
 
       const mainDir = path.join(uploadDir, claimId);
       if (fs.existsSync(mainDir)) {
         fs.rmSync(mainDir, { recursive: true, force: true });
       }
-      const updatedbasicDocuments = basicDocuments.map((itm: any) => {
-        const newFileArray: any = [];
-        uploadedBasicFiles.forEach((file) => {
-          const [id] = file.originalname.split("-").slice(-1);
-          if (itm.id === parseInt(id)) {
-            newFileArray.push(file.filename);
-          }
-        });
-        itm.files = newFileArray;
+      let updatedbasicDocuments = [];
+      if (uploadedBasicFiles.length > 0) {
+        updatedbasicDocuments = basicDocuments.map((itm: any) => {
+          const newFileArray: any = [];
+          uploadedBasicFiles.forEach((file) => {
+            const [id] = file.originalname.split("-").slice(-1);
+            if (itm.id === parseInt(id)) {
+              newFileArray.push(file.filename);
+            }
+          });
+          itm.files = newFileArray;
 
-        return itm;
-      });
+          return itm;
+        });
+      }
 
       await prisma.$transaction(async (__prisma) => {
         await __prisma.claims.create({
@@ -1234,10 +1238,12 @@ Claims.post(
         }
 
         await prisma.$queryRawUnsafe(
-          `DELETE FROM claims.claims where claim_id = '${claimId}'`
+          `DELETE FROM claims.claims where claim_id = ?`,
+          claimId
         );
         await prisma.$queryRawUnsafe(
-          `DELETE FROM claims.claims_details where claim_id = '${claimId}'`
+          `DELETE FROM claims.claims_details where claim_id = ?`,
+          claimId
         );
 
         const policyDetails = JSON.parse(req.body.policyDetails);
@@ -1249,20 +1255,23 @@ Claims.post(
         const uploadedFiles = reqFile.files as Express.Multer.File[];
 
         const basicDocuments = JSON.parse(req.body.basicDocuments);
-        const uploadedBasicFiles = reqFile.basic as Express.Multer.File[];
+        const uploadedBasicFiles =
+          (reqFile.basic as Express.Multer.File[]) || [];
+        let updatedbasicDocuments = [];
+        if (uploadedBasicFiles.length > 0) {
+          updatedbasicDocuments = basicDocuments.map((itm: any) => {
+            const newFileArray: any = [];
+            uploadedBasicFiles.forEach((file) => {
+              const [id] = file.originalname.split("-").slice(-1);
+              if (itm.id === parseInt(id)) {
+                newFileArray.push(file.filename);
+              }
+            });
+            itm.files = newFileArray;
 
-        const updatedbasicDocuments = basicDocuments.map((itm: any) => {
-          const newFileArray: any = [];
-          uploadedBasicFiles.forEach((file) => {
-            const [id] = file.originalname.split("-").slice(-1);
-            if (itm.id === parseInt(id)) {
-              newFileArray.push(file.filename);
-            }
+            return itm;
           });
-          itm.files = newFileArray;
-
-          return itm;
-        });
+        }
 
         await _prisma.claims.create({
           data: {

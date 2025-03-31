@@ -3,14 +3,14 @@ import cors from "cors";
 import router from "./src/controller";
 import path from "path";
 import cookieParser from "cookie-parser";
+import env from "dotenv";
+
+env.config();
 
 const PORT = process.env.PORT;
 
 const corsOptions = {
-  origin: [
-    "http://localhost:3000",
-    "/", 
-    "*"],
+  origin: ["http://localhost:3000", "https://claims.upwardinsurance.net"],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -23,9 +23,14 @@ async function main() {
   app.use(cors(corsOptions));
   app.use(express.static(path.join(__dirname, "static")));
   app.use(express.static(path.join(__dirname, "/static/image/")));
+  // app.use(express.static(path.join(__dirname, "/src/view")));
+
   app.use("/api", router);
 
-  
+  // app.get("*", (req, res) => {
+  //   res.sendFile(path.join(__dirname, "/src/view/", "index.html"));
+  // });
+
   app.listen(PORT, () => console.log(`Listen in port ${PORT}`));
 }
 
