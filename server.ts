@@ -20,7 +20,10 @@ async function main() {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: "1000mb" }));
   app.use(cookieParser());
+
   app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
+  
   app.use(express.static(path.join(__dirname, "static")));
   app.use(express.static(path.join(__dirname, "/static/image/")));
   app.use("/api", router);
