@@ -118,10 +118,18 @@ Imbersement.post(
         metadata.amount_imbursement.replace(/,/g, "")
       ).toFixed(2);
 
+      metadata.amount_approved = parseFloat(
+        metadata.amount_approved.replace(/,/g, "") || 0
+      ).toFixed(2);
+
       await prisma.$transaction(async (_prisma) => {
         metadata.date_claim = new Date(metadata.date_claim);
         metadata.date_release = new Date(metadata.date_release);
-        metadata.date_return_upward = new Date(metadata.date_return_upward);
+        metadata.date_return_upward =
+          metadata.date_return_upward !== ""
+            ? new Date(metadata.date_return_upward)
+            : undefined;
+
         await _prisma.reimbursement.create({
           data: {
             ...metadata,
@@ -190,19 +198,25 @@ Imbersement.post(
       const basicDocuments = JSON.parse(req.body.basicDocuments);
       const uploadedBasicFiles = (reqFile.basic as Express.Multer.File[]) || [];
 
+      if (
+        !(await saveUserLogsCode(
+          req,
+          "update",
+          metadata.refNo,
+          "Reimbersement",
+          prisma
+        ))
+      ) {
+        return res.send({ message: "Invalid User Code", success: false });
+      }
+
       await prisma.$transaction(async (_prisma) => {
-        if (
-          !(await saveUserLogsCode(
-            req,
-            "update",
-            metadata.refNo,
-            "Reimbersement",
-            _prisma
-          ))
-        ) {
-          return res.send({ message: "Invalid User Code", success: false });
-        }
         delete metadata.userCodeConfirmation;
+
+        const mainDir = path.join(uploadDir, metadata.refNo);
+        if (fs.existsSync(mainDir)) {
+          fs.rmSync(mainDir, { recursive: true, force: true });
+        }
 
         await _prisma.$queryRawUnsafe(
           `DELETE FROM claims.reimbursement WHERE refNo = ?`,
@@ -210,6 +224,7 @@ Imbersement.post(
         );
 
         let updatedbasicDocuments = [];
+
         if (uploadedBasicFiles.length > 0) {
           updatedbasicDocuments = basicDocuments.map((itm: any) => {
             const newFileArray: any = [];
@@ -233,9 +248,17 @@ Imbersement.post(
           metadata.amount_imbursement.replace(/,/g, "")
         ).toFixed(2);
 
+        metadata.amount_approved = parseFloat(
+          metadata.amount_approved.replace(/,/g, "") || 0
+        ).toFixed(2);
+
         metadata.date_claim = new Date(metadata.date_claim);
         metadata.date_release = new Date(metadata.date_release);
-        metadata.date_return_upward = new Date(metadata.date_return_upward);
+        metadata.date_return_upward =
+          metadata.date_return_upward !== ""
+            ? new Date(metadata.date_return_upward)
+            : undefined;
+
         await _prisma.reimbursement.create({
           data: {
             ...metadata,
@@ -243,7 +266,6 @@ Imbersement.post(
           },
         });
 
-        const mainDir = path.join(uploadDir, metadata.refNo);
         if (fs.existsSync(mainDir)) {
           fs.rmSync(mainDir, { recursive: true, force: true });
         }
@@ -345,10 +367,12 @@ async function searchImberment(search: string) {
       date_format(date_claim,'%Y-%m-%d') as date_claim,
       unit_insured,
       client_name,
+       tpl_name,
        format(amount_claim,2) as amount_claim,
       date_format(date_release,'%Y-%m-%d') as date_release,
       date_format(date_return_upward,'%Y-%m-%d') as date_return_upward,
       format(amount_imbursement,2) as amount_imbursement,
+      format(amount_approved,2) as amount_approved,
       payment,
       payee,
       remarks,
@@ -358,10 +382,12 @@ async function searchImberment(search: string) {
     WHERE
         refNo LIKE ?  
         OR client_name LIKE ?  
+        OR tpl_name LIKE ?  
         OR payee LIKE ?  
         OR type_claim LIKE ?
     ORDER BY refNo;
   `,
+    `%${search}%`,
     `%${search}%`,
     `%${search}%`,
     `%${search}%`,
