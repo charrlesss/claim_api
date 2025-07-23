@@ -12,7 +12,6 @@ import PDFDocument from "pdfkit";
 import { format } from "date-fns";
 
 fs.ensureDirSync(uploadDir);
-
 Claims.post("/get-document", async (req, res) => {
   try {
     console.log(req.body);
@@ -170,31 +169,39 @@ Claims.post("/selected-search-policy", async (req, res): Promise<any> => {
   try {
     const policyType = req.body.policyType.toUpperCase();
     let database = "";
-
-    if (req.body.department === "UMIS") {
+    console.log(req.body)
+    if (req.body.from === "UMIS") {
       database = "upward_insurance_umis";
-    } else if (req.body.department === "UCSMI") {
+    } else if (req.body.from === "UCSMI") {
       database = "new_upward_insurance_ucsmi";
     } else {
       database = "claims";
     }
 
-    const totalGross = await prisma.$queryRawUnsafe(
-      `SELECT TotalDue FROM ${database}.policy where PolicyNo = ?`,
-      req.body.policyNo
-    );
-    const totalPaidDeposit = await prisma.$queryRawUnsafe(
-      `SELECT  ifNull(SUM(Credit),0)  as totalDeposit FROM ${database}.journal where Source_Type = 'OR' and GL_Acct = '1.03.01' and ID_No = ?`,
-      req.body.policyNo
-    );
-    const totalPaidReturned = await prisma.$queryRawUnsafe(
-      `SELECT ifNull(SUM(Debit),0) as totalReturned FROM ${database}.journal where Source_Type = 'RC'   and GL_Acct = '1.03.01' and ID_No = ?`,
-      req.body.policyNo
-    );
-    const totalDiscount = await prisma.$queryRawUnsafe(
-      `SELECT ifNull(SUM(Debit),0)  as discount FROM ${database}.journal where Source_Type = 'GL'  and GL_Acct = '7.10.15'   and ID_No = ?`,
-      req.body.policyNo
-    );
+
+    let totalGross = [{ TotalDue: "0" }];
+    let totalPaidDeposit = [{ totalDeposit: "0" }];
+    let totalPaidReturned = [{ totalReturned: "0" }];
+    let totalDiscount = [{ discount: "0" }];
+
+    if (database !== "claims") {
+      totalGross = await prisma.$queryRawUnsafe(
+        `SELECT TotalDue FROM ${database}.policy where PolicyNo = ?`,
+        req.body.policyNo
+      );
+      totalPaidDeposit = await prisma.$queryRawUnsafe(
+        `SELECT  ifNull(SUM(Credit),0)  as totalDeposit FROM ${database}.journal where Source_Type = 'OR' and GL_Acct = '1.03.01' and ID_No = ?`,
+        req.body.policyNo
+      );
+      totalPaidReturned = await prisma.$queryRawUnsafe(
+        `SELECT ifNull(SUM(Debit),0) as totalReturned FROM ${database}.journal where Source_Type = 'RC'   and GL_Acct = '1.03.01' and ID_No = ?`,
+        req.body.policyNo
+      );
+      totalDiscount = await prisma.$queryRawUnsafe(
+        `SELECT ifNull(SUM(Debit),0)  as discount FROM ${database}.journal where Source_Type = 'GL'  and GL_Acct = '7.10.15'   and ID_No = ?`,
+        req.body.policyNo
+      );
+    }
 
     if (policyType === "COM" || policyType === "TPL") {
       res.send({
@@ -575,7 +582,10 @@ Claims.post("/search-claim", async (req, res): Promise<any> => {
         b.Department,
         b.Name,
         b.ChassisNo,
-        b.MotorNo
+        b.MotorNo,
+        b.remarks,
+        b.from_d
+
     FROM
         claims.claims a
         LEFT JOIN (${unionTable}) b ON a.policyNo = b.PolicyNo
@@ -586,8 +596,8 @@ Claims.post("/search-claim", async (req, res): Promise<any> => {
         OR b.PolicyNo LIKE ?
         OR b.IDNo LIKE ?
         OR b.Name LIKE ?
-    ORDER BY claim_id
-    LIMIT 100
+    ORDER BY claim_id desc
+    LIMIT 5000
       `;
     const data = await prisma.$queryRawUnsafe(
       qry,
@@ -626,7 +636,7 @@ Claims.post("/search-policy", async (req, res): Promise<any> => {
               OR a.IDNo LIKE ?
               OR a.Name LIKE ?
       ORDER BY NAME
-      LIMIT 100
+      LIMIT 5000
       `;
     const data = await prisma.$queryRawUnsafe(
       qry,
@@ -655,9 +665,9 @@ Claims.post("/selected-search-claim", async (req, res): Promise<any> => {
     const policyType = req.body.policyType.toUpperCase();
     let database = "";
 
-    if (req.body.department === "UMIS") {
+    if (req.body.from === "UMIS") {
       database = "upward_insurance_umis";
-    } else if (req.body.department === "UCSMI") {
+    } else if (req.body.from === "UCSMI") {
       database = "new_upward_insurance_ucsmi";
     } else {
       database = "claims";
@@ -1600,6 +1610,7 @@ Claims.post(
     }
   }
 );
+
 Claims.post("/generate-claim-sheet", async (req, res) => {
   try {
     let Department = req.body.departmentRef;
@@ -2265,12 +2276,14 @@ const unionTable = `
             b.IDNo,
                 b.PolicyType,
                 b.PolicyNo,
-                'CLAIMS' AS Department,
+                b.Department,
                 IF(c.company <> ''
                     AND c.company IS NOT NULL, c.company, CONCAT(IF(c.lastname <> ''
                     AND c.lastname IS NOT NULL, CONCAT(c.lastname, ', '), ''), c.firstname, IF(c.suffix <> '' AND c.suffix IS NOT NULL, CONCAT(', ', c.suffix), ''))) AS Name,
                 d.ChassisNo,
-                d.MotorNo
+                d.MotorNo,
+                ifnull(d.Remarks,'') as remarks,
+                'CLAIMS' as from_d
         FROM
             claims.policy b
         LEFT JOIN claims.entry_client c ON b.IDNo = c.entry_client_id
@@ -2285,7 +2298,9 @@ const unionTable = `
                     AND c.company IS NOT NULL, c.company, CONCAT(IF(c.lastname <> ''
                     AND c.lastname IS NOT NULL, CONCAT(c.lastname, ', '), ''), c.firstname, IF(c.suffix <> '' AND c.suffix IS NOT NULL, CONCAT(', ', c.suffix), ''))) AS Name,
                 d.ChassisNo,
-                d.MotorNo
+                d.MotorNo,
+                ifnull(d.Remarks,'') as remarks,
+                'UCSMI' as from_d
         FROM
             new_upward_insurance_ucsmi.policy b
         LEFT JOIN new_upward_insurance_ucsmi.entry_client c ON b.IDNo = c.entry_client_id
@@ -2300,7 +2315,9 @@ const unionTable = `
                     AND c.company IS NOT NULL, c.company, CONCAT(IF(c.lastname <> ''
                     AND c.lastname IS NOT NULL, CONCAT(c.lastname, ', '), ''), c.firstname, IF(c.suffix <> '' AND c.suffix IS NOT NULL, CONCAT(', ', c.suffix), ''))) AS Name,
                 d.ChassisNo,
-                d.MotorNo
+                d.MotorNo,
+                ifnull(d.Remarks,'') as remarks,
+                'UMIS' as from_d
         FROM
             upward_insurance_umis.policy b
         LEFT JOIN upward_insurance_umis.entry_client c ON b.IDNo = c.entry_client_id
